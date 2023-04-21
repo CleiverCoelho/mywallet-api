@@ -2,6 +2,8 @@ import express from 'express';
 import { MongoClient, ObjectId } from 'mongodb';
 import dotenv from 'dotenv';
 import joi from 'joi';
+import bcrypt from 'bcrypt';
+import {v4 as uuid} from "uuid"
 import dayjs from 'dayjs';
 
 dotenv.config();
@@ -21,95 +23,129 @@ const app = express();
 app.use(express.json());
 
 /* Products Routes */
-// app.post('/participants', async (req, res) => {
+app.post('/cadastro', async (req, res) => {
   
-//     const {name} = req.body;
-//     const novoModelo = {name,lastStatus: Date.now()}
+    const {nome, email, senha} = req.body;
 
-//     // verificacoes com joi
-//     const useSchema = joi.object({name: joi.string().required()})
+    // verificacoes com joi
+    const useSchemaCadastro = joi.object({
+      nome: joi.string().required(),
+      email: joi.string().required().email(),
+      senha: joi.string().required().min(3),
+    })
 
-//     const validacao = useSchema.validate(req.body);
-//     if(validacao.error) return res.status(422).send(validacao.error.details);
-    
-//     try {
+    const validacao = useSchemaCadastro.validate(req.body, {abortEarly: false})
+    if (validacao.error) {
+      const errors = validacao.error.details.map((detail) => detail.message);
+      return res.status(422).send(errors);
+    }
+    try {
 
-//         const existeNome = await db.collection('participants').findOne({name: req.body.name});
-//         // se nao existir retorna nulo e nao entra no if
-//         if(existeNome) return res.status(409).send("usuario ja cadastrado");
+        const existeNome = await db.collection('usuarios').findOne({email});
+        // se nao existir retorna nulo e nao entra no if
+        if(existeNome) return res.status(409).send("usuario ja cadastrado");
         
-//         // inserir participante com lasStatus incluido no obj
-//         await db.collection('participants').insertOne(novoModelo);
+        // criptografar a senha antes de guardar no db
+        const senhaCriptografada = bcrypt.hashSync(senha, 10);
+        const novoCadastro = {
+          nome,
+          email, 
+          senha: senhaCriptografada
+        }
+        // inserir participante com lasStatus incluido no obj
+        await db.collection('usuarios').insertOne(novoCadastro);
+        res.status(201).send("usuario cadastrado com sucesso")
+
+    } catch (error) {
         
-//         // res.send("Participante adicionado com sucesso")
-//         // montar mensagem de post na colleciton mensagem
-//         const mensagemEntrou = { 
-//             from: name,
-//             to: 'Todos',
-//             text: 'entra na sala...',
-//             type: 'status',
-//             time: dayjs().format('HH:mm:ss')
-//         }
+        console.error(error);
+        res.sendStatus(500);
+    }
+});
 
-//         // realizar post na collection mensagem
-//         await db.collection('messages').insertOne(mensagemEntrou);
-//         res.status(201).send("mensagem e participante criados com sucesso")
-//         // res.sendStatus(201);
+app.post('/', async (req, res) => {
+  
+  const {email, senha} = req.body;
 
-//     } catch (error) {
-        
-//         console.error(error);
-//         res.sendStatus(500);
-//     }
-// });
+  // verificacoes com joi
+  const useSchemaLogin = joi.object({
+    email: joi.string().required().email(),
+    senha: joi.string().required(),
+  })
 
-// app.get('/participants', async (req, res) => {
+  const validacao = useSchemaLogin.validate(req.body, {abortEarly: false})
+  if (validacao.error) {
+    const errors = validacao.error.details.map((detail) => detail.message);
+    return res.status(422).send(errors);
+  }
+  try {
 
-//   try {
-//     const participants = await db.collection('participants').find().toArray()
-//     if (!participants) {
-//       return res.sendStatus(404);
-//     }
-
-//     res.send(participants);
-//   } catch (error) {
-//     console.error(error);
-//     res.sendStatus(500);
-//   }
-// });
-
-// app.get('/messages', async (req, res) => {
-
-//     const {user} = req.headers
-//     const {limit} = req.query
-
-//     try {
-//       // se nao houver mensagens retorna o array vazio mesmo
-//       const messages = await db.collection('messages').find( { $or: [ { to: user }, { to: "Todos" }, {from: user} ] }).toArray()
-//       if(messages[0] === null) return res.send([])
-
-//       if(limit !== undefined){
-//         // se limite for invalido, retorna erro, senao, continua
-//         if(limit <= 0 || (limit !== undefined && isNaN(limit))){
-//           return res.status(422).send("limite invalido");
-//         }
-//         const limitedMessages = []
-//         for(let i = messages.length - 1; i > messages.length -1 - limit; i--){
-//           if(messages[i] === undefined) {
-//             break
-//           }
-//           limitedMessages.push(messages[i])
-//         }
-//         return res.status(200).send(limitedMessages);
-//       }
-
-//       res.status(200).send(messages)
+      const existeEmail = await db.collection('usuarios').findOne({email});
+      // se nao existir retorna nulo e nao entra no if
+      if(!existeEmail) return res.status(404).send("email nao cadastrado");
+      console.log(existeEmail.senha);
       
-//     } catch (error) {
-//       console.error(error);
-//       res.sendStatus(500);
-//     }
-//   });
+      // comparar senha inserida pelo usuario a senha criptografada no db
+      const senhaValida = bcrypt.compareSync(senha, existeEmail.senha); 
+      if(!senhaValida) return res.status(401).send("senha incorreta");
+      
+       // cria um nova sessao ativa com um novo tokeno do usuario cadastrado
+       const usuarioCadastrado = await db.collection('usuarios').findOne({email});
+       const token = uuid();
+       const novaSessao = {
+         idUsuario: usuarioCadastrado._id,
+         token
+       }
+       await db.collection('sessoes').insertOne(novaSessao);
+
+      res.status(200).send(`token do cadastro: ${token}\n do usuario ${existeEmail.nome}`);
+
+  } catch (error) {
+      
+      console.error(error);
+      res.sendStatus(500);
+  }
+});
+
+
+app.post('/nova-transacao/:tipo', async (req, res) => {
+
+    // const userToken = req.headers.authorization;
+    // para integrar com o front
+    const userToken = req.headers.authorization?.replace("Bearer ", "");
+    const {descricao, valor} = req.body;
+    const {tipo} = req.params;
+
+    const existeToken = await db.collection('sessoes').findOne({token: userToken})
+    if(!existeToken) return res.status(401).send('usuario nao pode fazer requisicao')
+
+    const usuario = existeToken.idUsuario;
+
+    const useSchemaParametros = joi.object({
+      userToken: joi.string().required(),
+      valor: joi.number().precision(2).required(),
+      tipo: joi.string().required(),
+      descricao: joi.string().required()
+    });
+
+    const validaRequisicao = useSchemaParametros.validate({userToken, descricao, tipo, valor});
+    if(validaRequisicao.error) {
+      const errors = validaRequisicao.error.details.map((detail) => detail.message);
+      return res.status(422).send(errors);
+    }
+
+    try {
+      const dia = dayjs().format('DD/MM')
+      const transacaoDB = {descricao, tipo, valor, usuario, dia}
+
+      await db.collection('transacoes').insertOne(transacaoDB)
+      res.status(200).send("transacao feita com sucesso")
+      
+    } catch (error) {
+      console.error(error);
+      res.sendStatus(500);
+    }
+  });
 
 // app.post('/messages', async (req, res) => {
 //   const message = req.body;
