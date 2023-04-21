@@ -174,6 +174,23 @@ app.post('/nova-transacao/:tipo', async (req, res) => {
     }
   });
 
+  app.post('/home', async (req, res) => {
+
+    const userToken = req.headers.authorization?.replace("Bearer ", "");
+    const validaToken = await db.collection('sessoes').findOne({token: userToken});
+    if(!validaToken) return res.status(401).send("token invalido");
+
+    try {
+      const verificacao = await db.collection('sessoes').deleteOne({token: userToken});
+      if(!verificacao.deletedCount) return res.status(400).send("falha ao realizar logout")
+
+      res.sendStatus(200);
+    } catch (error) {
+      console.error(error);
+      res.sendStatus(500);
+    }
+  });
+
 // app.delete('/messages/:id', async (req, res) => {
 //   const idMessage = req.params.id;
 //   const user = req.headers.user
