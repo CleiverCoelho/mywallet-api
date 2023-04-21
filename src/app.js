@@ -163,6 +163,17 @@ app.post('/nova-transacao/:tipo', async (req, res) => {
     }
   });
 
+  app.get('/sessoes', async (req, res) => {
+
+    try {
+      const sessoes = await db.collection('sessoes').find().toArray();
+      res.send(sessoes);
+    } catch (error) {
+      console.error(error);
+      res.sendStatus(500);
+    }
+  });
+
 // app.delete('/messages/:id', async (req, res) => {
 //   const idMessage = req.params.id;
 //   const user = req.headers.user
