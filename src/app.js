@@ -141,7 +141,7 @@ app.post('/nova-transacao/:tipo', async (req, res) => {
       const transacaoDB = {descricao, tipo, valor, usuario, dia}
 
       await db.collection('transacoes').insertOne(transacaoDB);
-      res.status(200).send("transacao feita com sucesso");
+      res.status(200).send('transacao feita com sucesso');
       
     } catch (error) {
       console.error(error);
