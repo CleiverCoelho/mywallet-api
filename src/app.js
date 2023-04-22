@@ -20,6 +20,7 @@ try {
 const db = mongoClient.db();
 
 const app = express();
+app.use(cors());
 app.use(express.json());
 
 /* Products Routes */
@@ -83,8 +84,7 @@ app.post('/', async (req, res) => {
       const existeEmail = await db.collection('usuarios').findOne({email});
       // se nao existir retorna nulo e nao entra no if
       if(!existeEmail) return res.status(404).send("email nao cadastrado");
-      console.log(existeEmail.senha);
-      
+      const nome = existeEmail.nome;
       // comparar senha inserida pelo usuario a senha criptografada no db
       const senhaValida = bcrypt.compareSync(senha, existeEmail.senha); 
       if(!senhaValida) return res.status(401).send("senha incorreta");
@@ -92,13 +92,14 @@ app.post('/', async (req, res) => {
        // cria um nova sessao ativa com um novo tokeno do usuario cadastrado
        const usuarioCadastrado = await db.collection('usuarios').findOne({email});
        const token = uuid();
+       console.log("TOKEN GERADO")
        const novaSessao = {
          idUsuario: usuarioCadastrado._id,
          token
        }
        await db.collection('sessoes').insertOne(novaSessao);
 
-      res.status(200).send(token);
+      res.status(200).send({token, nome});
 
   } catch (error) {
       
