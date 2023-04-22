@@ -5,6 +5,7 @@ import joi from 'joi';
 import bcrypt from 'bcrypt';
 import {v4 as uuid} from "uuid"
 import dayjs from 'dayjs';
+import cors from 'cors';
 
 dotenv.config();
 
