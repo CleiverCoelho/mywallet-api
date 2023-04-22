@@ -98,7 +98,7 @@ app.post('/', async (req, res) => {
        }
        await db.collection('sessoes').insertOne(novaSessao);
 
-      res.status(200).send(`token do cadastro: ${token}\n do usuario ${existeEmail.nome}`);
+      res.status(200).send(token);
 
   } catch (error) {
       
