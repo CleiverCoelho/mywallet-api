@@ -193,26 +193,36 @@ app.post('/nova-transacao/:tipo', async (req, res) => {
     }
   });
 
-// app.delete('/messages/:id', async (req, res) => {
-//   const idMessage = req.params.id;
-//   const user = req.headers.user
+app.delete('/transacoes/:id', async (req, res) => {
 
-//   // procura por mensagem na db
-//   const existeMensagem = await db.collection("messages").findOne({_id: new ObjectId(idMessage)})
-//   console.log(existeMensagem)
-//   if(!existeMensagem) return res.status(404).send("Mensagem nao existe")
+  const idTransacao = req.params.id;
+  const tokenUser = req.headers.authorization?.replace("Bearer ", "");
 
-//   // verifica se a requisicao foi feita pelo dono da mensagem
-//   if(user !== existeMensagem.from) return res.status(401).send("usuario nao pode deletar mensagem");
-//   try {
+  // procura por mensagem na db
+  const existeTransacao = await db.collection('transacoes').findOne({_id: new ObjectId(idTransacao)})
+  console.log(existeTransacao);
+  if(!existeTransacao) return res.status(404).send("Transacao nao existe");
 
-//     await db.collection('messages').deleteOne({ _id: new ObjectId(idMessage) })
-//     res.status(200).send("mensagem deletada com sucesso");
-//   } catch (error) {
-//     console.error(error);
-//     res.sendStatus(500);
-//   }
-// });
+  console.log(existeTransacao);
+
+  const idUser = await db.collection('sessoes').findOne({token: tokenUser});
+
+
+  // console.log(idUser.idUsuario);
+  // console.log("\n");
+  // console.log(existeTransacao.usuario)
+
+  // verifica se a requisicao foi feita pelo dono da mensagem
+  if(!idUser.idUsuario.equals(existeTransacao.usuario)) return res.status(401).send("usuario nao pode deletar mensagem");
+  try {
+
+    await db.collection('transacoes').deleteOne({ _id: new ObjectId(idTransacao) })
+    res.status(200).send("transacao deletada com sucesso");
+  } catch (error) {
+    console.error(error);
+    res.sendStatus(500);
+  }
+});
 
 
 // app.put('/messages/:id', async (req, res) => {
