@@ -2,9 +2,7 @@ import express from 'express';
 import { MongoClient, ObjectId } from 'mongodb';
 import dotenv from 'dotenv';
 import cors from 'cors';
-import transacoesRouter from './routes/transacoes.routes.js';
-import usuariosRouter from './routes/usuarios.routes.js';
-import sessoesRouter from './routes/sessoes.routes.js';
+import router from './routes/index.routes.js';
 
 dotenv.config();
 
@@ -22,9 +20,7 @@ export const db = mongoClient.db();
 const app = express();
 app.use(cors());
 app.use(express.json());
-app.use(transacoesRouter);
-app.use(usuariosRouter);
-app.use(sessoesRouter);
+app.use(router);
 
 const port = process.env.PORT || 5000;
 
